@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import './App.css'
 import Field from './components/Field'
-import Hand from './components/Hand'
 import Deck from './models/Deck'
 import Player from './models/Player'
 
@@ -43,34 +42,39 @@ const App = () => {
   }
 
   const attack = (card) => {
+    // Проверяем, пусто ли поле и игрок начинает ход
     if (!currentCard) {
       setCurrentCard(card)
-      //`
       setFieldCards([card])
-      // Удалить карту из руки игрока
-      player.hand.cards = player.hand.cards.filter(c => c !== card)
+      player.hand.cards = player.hand.cards.filter(c => c !== card) // Удалить карту из руки игрока
 
-      // Проверить, проиграл ли игрок после атаки
+      // Проверяем, проиграл ли игрок после атаки
       const isGameOver = checkGameOver()
       if (isGameOver) return
+      setIsPlayerTurn(false) // Теперь ход бота
+    } else {
+      setCurrentCard(null)
+      // Добавляем проверку на то, что игрок может крыть
+      const canCover =
+        card.isGreaterThan(currentCard) ||
+        (card.isTrump(trumpSuit) && !currentCard.isTrump(trumpSuit)) ||
+        (card.rank === currentCard.rank)
 
-      // Переключить на ход бота
+      if (canCover) {
+        setFieldCards([card])
+        player.hand.cards = player.hand.cards.filter(c => c !== card) // Удалить карту из руки игрока
 
-
-      setIsPlayerTurn(false)
-    } else if (card.rank === currentCard.rank) {
-      setFieldCards([...fieldCards, card])
-      // Удалить карту из руки игрока
-      player.hand.cards = player.hand.cards.filter(c => c !== card)
-
-      // Проверить, проиграл ли игрок после атаки
-      const isGameOver = checkGameOver()
-      if (isGameOver) return
-
-      // Переключить на ход бота
-      setIsPlayerTurn(false)
+        // Проверяем, проиграл ли игрок после атаки
+        const isGameOver = checkGameOver()
+        if (isGameOver) return
+        setCurrentCard(null)
+        setIsPlayerTurn(false) // Теперь ход бота
+      } else {
+        alert("Вы не можете крыть этой картой!")
+      }
     }
   }
+
 
   const botAttack = () => {
     // Логика для того, чтобы бот атаковал после успешной защиты
@@ -79,6 +83,7 @@ const App = () => {
     if (cardToAttack) {
       setTimeout(() => {
         setFieldCards([cardToAttack])
+        setCurrentCard(cardToAttack)
         setIsPlayerTurn(true)
       }, 1500)
 
@@ -205,9 +210,11 @@ const App = () => {
             <div>
               {isPlayerTurn ? (
                 <>
-                  <button onClick={() => setIsPlayerTurn(true)}>Защититься</button>
-                  <h3>Бот</h3>
-                  <Hand cards={bot.hand.cards} />
+                  {player.hand.cards.map((card, index) => (
+                    <div className="card" key={index} onClick={() => isPlayerTurn && attack(card)}>
+                      {card.rank} {card.suit}
+                    </div>
+                  ))}
                 </>
               ) : (
                 <p>Ход бота, подождите...</p>
