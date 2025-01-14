@@ -13,7 +13,7 @@ const App = () => {
   const [trumpSuit, setTrumpSuit] = useState(null)
   const [gameStatus, setGameStatus] = useState('')
   const [isPlayerTurn, setIsPlayerTurn] = useState(true)
-
+  const [canDrawCard, setCanDrawCard] = useState(false)
   useEffect(() => {
     // Инициализация игры
     deck.shuffle() // Перемешать колоду перед раздачей
@@ -30,7 +30,7 @@ const App = () => {
     if (isPlayerTurn) return // Если ход игрока, ничего не делать
     setTimeout(() => {
       botTurn() // Иначе, делать ход бота
-    }, 2000)
+    }, 500)
 
   }, [isPlayerTurn]) // Это вызывается, когда isPlayerTurn изменяется
 
@@ -40,7 +40,17 @@ const App = () => {
       player.hand.cards.push(drawnCard) // Добавляем карту в руку игрока
     }
   }
+  const updateCanDrawCard = () => {
+    // Проверка, может ли игрок взять карту
+    const lastCard = currentCard
+    const canCover = player.hand.cards.some(card =>
+      (card.isGreaterThan(lastCard) && card.suit === lastCard.suit) ||
+      (card.isTrump(trumpSuit) && !lastCard.isTrump(trumpSuit)) ||
+      (card.isTrump(trumpSuit) && lastCard.isTrump(trumpSuit) && card.isGreaterThan(lastCard))
+    )
 
+    setCanDrawCard(!canCover) // Игрок может тянуть карту, если не может покрыть
+  }
   const attack = (card) => {
     // Проверяем, пусто ли поле и игрок начинает ход
     if (!currentCard) {
@@ -51,14 +61,17 @@ const App = () => {
       // Проверяем, проиграл ли игрок после атаки
       const isGameOver = checkGameOver()
       if (isGameOver) return
+
+      // Обновляем очередь на ход
       setIsPlayerTurn(false) // Теперь ход бота
     } else {
-      setCurrentCard(null)
-      // Добавляем проверку на то, что игрок может крыть
+      const lastCard = currentCard // Последняя карта на столе
+
+      // Проверка на возможность крытия
       const canCover =
-        card.isGreaterThan(currentCard) ||
-        (card.isTrump(trumpSuit) && !currentCard.isTrump(trumpSuit)) ||
-        (card.rank === currentCard.rank)
+        (card.isGreaterThan(lastCard) && card.suit === lastCard.suit) ||  // Сильная карта той же масти
+        (card.isTrump(trumpSuit) && !lastCard.isTrump(trumpSuit)) ||  // Козырь против некозыря
+        (card.isTrump(trumpSuit) && lastCard.isTrump(trumpSuit) && card.isGreaterThan(lastCard))  // Сильный козырь против другого козыря
 
       if (canCover) {
         setFieldCards([card])
@@ -67,7 +80,9 @@ const App = () => {
         // Проверяем, проиграл ли игрок после атаки
         const isGameOver = checkGameOver()
         if (isGameOver) return
-        setCurrentCard(null)
+
+
+        // Обновляем очередь на ход
         setIsPlayerTurn(false) // Теперь ход бота
       } else {
         alert("Вы не можете крыть этой картой!")
@@ -81,11 +96,12 @@ const App = () => {
     const cardToAttack = bot.hand.cards[Math.floor(Math.random() * bot.hand.cards.length)]
 
     if (cardToAttack) {
+      alert(`Бот атакует картой: ${cardToAttack.rank}${cardToAttack.suit}`)
       setTimeout(() => {
         setFieldCards([cardToAttack])
         setCurrentCard(cardToAttack)
         setIsPlayerTurn(true)
-      }, 1500)
+      }, 500)
 
     } else {
       alert("Бот не может атаковать и берёт карты с поля.")
@@ -106,9 +122,12 @@ const App = () => {
     const lastCard = fieldCards[fieldCards.length - 1]
 
     // Проверка для успешной защиты
-    const canDefend = card.isGreaterThan(lastCard) ||
-      (card.isTrump(trumpSuit) && !lastCard.isTrump(trumpSuit)) ||
-      (card.rank === lastCard.rank)
+    const canDefend =
+      (card.isGreaterThan(lastCard) && card.suit === lastCard.suit) || // Сильная карта той же масти
+      (card.isTrump(trumpSuit) && !lastCard.isTrump(trumpSuit)) || // Козырь против некозыря
+      (card.isTrump(trumpSuit) && lastCard.isTrump(trumpSuit) && card.isGreaterThan(lastCard)) // Сильный козырь против другого козыря
+
+
 
     if (canDefend) {
       // Удаление защищающей карты из руки игрока или бота
@@ -124,16 +143,16 @@ const App = () => {
       setFieldCards([])
 
       // Ход бота после успешной защиты
+
       botAttack()
     } else {
-      // Неправильная защита
-      alert("Защита не удалась! Вы берете все карты с поля.")
-
       // Игрок или бот берет все карты с поля
       if (player.hand.cards.includes(card)) {
         player.hand.cards.push(...fieldCards)
+        alert("Защита не удалась! Вы берете все карты с поля.")
       } else {
         bot.hand.cards.push(...fieldCards)
+        alert("Бот не может покрыть, Он берет все карты с поля.")
       }
       setFieldCards([]) // Очищаем поле
       setCurrentCard(null) // Сбрасываем текущую карту
@@ -150,18 +169,19 @@ const App = () => {
 
   const botTurn = () => {
     if (!currentCard) {
-      setIsPlayerTurn(true)
-      return // Если нет текущей карты, то ничего не делаем
+      botAttack()
     }
 
     const lastCard = fieldCards[fieldCards.length - 1]
     const cardToPlay = bot.hand.cards.find(card =>
-      card.rank === currentCard.rank ||
-      (card.isGreaterThan(currentCard) && !card.isTrump(trumpSuit) && lastCard.isTrump(trumpSuit)) ||
-      (card.isTrump(trumpSuit) && !lastCard.isTrump(trumpSuit))
+      (card.isGreaterThan(lastCard) && card.suit === lastCard.suit) || // Сильная карта той же масти
+      (card.isTrump(trumpSuit) && !lastCard.isTrump(trumpSuit)) || // Козырь против некозыря
+      (card.isTrump(trumpSuit) && lastCard.isTrump(trumpSuit) && card.isGreaterThan(lastCard))  // Сильный козырь против другого козыря
     )
 
     if (cardToPlay) {
+      alert(`Бот бьёт картой:${cardToPlay.rank}${cardToPlay.suit}`)
+      setFieldCards([...fieldCards, cardToPlay])
       defend(cardToPlay) // Бот защищается или атакует
     } else {
       // Если у бота нет подходящей карты, он собирает карты
@@ -195,6 +215,33 @@ const App = () => {
     drawCards(bot, deck)
 
   }, [player.hand.cards.length, bot.hand.cards.length, deck])
+  const takeCardFromBot = () => {
+    // Проверка наличия карт на поле
+    if (fieldCards.length === 0) {
+      alert('Нет карт на поле, которые можно забрать у бота!')
+      return
+    }
+
+    // Сначала добавляем карты с поля в руку игрока
+    player.hand.cards.push(...fieldCards)
+    setFieldCards([]) // Очищаем поле
+
+    // Проверка завершения игры
+    const isGameOver = checkGameOver()
+    if (isGameOver) {
+      // Если игра закончена, можно добавить логику завершения - например, уведомление или переход к экрану окончания игры
+      alert("Игра окончена!") // Можно адаптировать под ваши нужды
+      return
+    }
+
+    // Сбрасываем текущую карту (если это нужно в вашей игре)
+    setCurrentCard(null)
+
+    // Ход переходит к боту
+    setIsPlayerTurn(false)
+  }
+  console.log(isPlayerTurn)
+
 
   return (
     <div className="container">
@@ -206,6 +253,7 @@ const App = () => {
         <>
           <h3>Игрок</h3>
           <Field cards={fieldCards} />
+
           {currentCard ? (
             <div>
               {isPlayerTurn ? (
@@ -214,10 +262,15 @@ const App = () => {
                     <div className="card" key={index} onClick={() => isPlayerTurn && attack(card)}>
                       {card.rank} {card.suit}
                     </div>
+
                   ))}
+                  <button onClick={takeCardFromBot}>Взять карты с поля</button>
                 </>
               ) : (
-                <p>Ход бота, подождите...</p>
+                <div>
+                  <p>Ход бота, подождите...</p>
+
+                </div>
               )}
             </div>
           ) : (

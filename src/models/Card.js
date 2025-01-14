@@ -9,6 +9,21 @@ export default class Card {
 	}
 
 	isGreaterThan(card) {
-		return this.rank > card.rank && this.suit === card.suit || this.isTrump(card.suit)
+		// Проверка, передан ли валидный объект карты
+		if (!card || typeof card !== 'object') {
+			return false // Если не валидная карта, не рассматриваем её в сравнении
+		}
+
+		if (this.isTrump(card.suit) && !card.isTrump(this.suit)) {
+			return true // Текущая карта - козырь, а карта противника - нет
+		}
+
+		if (this.suit === card.suit) {
+			return this.rank > card.rank // Одинаковая масть, сравниваем по рангу
+		}
+
+		return false // Разные масти и не козыри
 	}
+
+
 }
