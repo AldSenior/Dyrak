@@ -185,8 +185,10 @@ const App = () => {
       defend(cardToPlay) // Бот защищается или атакует
     } else {
       // Если у бота нет подходящей карты, он собирает карты
+      if (!isPlayerTurn) {
+        alert("Бот не смог защититься! Бот берет все карты.")
+      }
 
-      alert("Бот не смог защититься! Бот берет все карты.")
       bot.hand.cards.push(...fieldCards) // Бот берет все карты
       setFieldCards([])
       setCurrentCard(null)
@@ -218,19 +220,25 @@ const App = () => {
   const takeCardFromBot = () => {
     // Проверка наличия карт на поле
     if (fieldCards.length === 0) {
-      alert('Нет карт на поле, которые можно забрать у бота!')
+      alert('Нет карт на поле, которые можно забрать!')
       return
     }
 
     // Сначала добавляем карты с поля в руку игрока
     player.hand.cards.push(...fieldCards)
-    setFieldCards([]) // Очищаем поле
 
-    // Проверка завершения игры
+    // Удаляем карты с поля из рук бота, если это необходимо
+    fieldCards.forEach(card => {
+      bot.hand.cards = bot.hand.cards.filter(c => c !== card) // Убрать соответствующие карты у бота
+    })
+
+    // Очищаем поле
+    setFieldCards([])
+
+    // Проверяем завершение игры
     const isGameOver = checkGameOver()
     if (isGameOver) {
-      // Если игра закончена, можно добавить логику завершения - например, уведомление или переход к экрану окончания игры
-      alert("Игра окончена!") // Можно адаптировать под ваши нужды
+      alert("Игра окончена!") // Добавьте дальнейшую логику завершения игры
       return
     }
 
@@ -240,8 +248,7 @@ const App = () => {
     // Ход переходит к боту
     setIsPlayerTurn(false)
   }
-  console.log(isPlayerTurn)
-
+  console.log(bot.hand.cards)
 
   return (
     <div className="container">
@@ -251,7 +258,7 @@ const App = () => {
 
       {gameStatus === '' && (
         <>
-          <h3>Игрок</h3>
+          <p>Количество карт в колоде:{deck.cards.length}</p>
           <Field cards={fieldCards} />
 
           {currentCard ? (
