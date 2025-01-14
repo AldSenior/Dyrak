@@ -4,15 +4,11 @@ export default class Card {
 		this.rank = rank
 	}
 	isTrump(trumpSuit) {
-		if (!this) {
-			throw new Error('Контекст this потерян')
-		}
 		return this.suit === trumpSuit
 	}
 	isGreaterThan(card) {
-		// Проверка, передан ли валидный объект карты
 		if (!card || typeof card !== 'object') {
-			return false // Если не валидная карта, не рассматриваем её в сравнении
+			return false
 		}
 
 		if (this.isTrump(card.suit) && !card.isTrump(this.suit)) {

@@ -13,43 +13,45 @@ const App = () => {
   const [trumpSuit, setTrumpSuit] = useState(null)
   const [gameStatus, setGameStatus] = useState('')
   const [isPlayerTurn, setIsPlayerTurn] = useState(true)
-  const [canDrawCard, setCanDrawCard] = useState(false)
   useEffect(() => {
-    // Инициализация игры
-    deck.shuffle() // Перемешать колоду перед раздачей
+    //Инициализация игры
+    deck.shuffle() //Перемешать колоду перед раздачей
     player.draw(deck)
     bot.draw(deck)
 
-    // Определить козырь
+    //Определить козырь
     const trumpCard = deck.draw()
     setTrumpSuit(trumpCard.suit)
-    deck.cards.push(trumpCard) // Возврат козыря обратно в колоду
+    deck.cards.push(trumpCard)
   }, [deck, player, bot])
 
   useEffect(() => {
-    if (isPlayerTurn) return // Если ход игрока, ничего не делать
+    if (isPlayerTurn) return
     setTimeout(() => {
-      botTurn() // Иначе, делать ход бота
+      botTurn() //ход бота, если его очередь кароч
     }, 500)
 
-  }, [isPlayerTurn]) // Это вызывается, когда isPlayerTurn изменяется
+  }, [isPlayerTurn])
+
+  function checkCanCover(card, lastCard, trumpSuit) {
+    if (!card || typeof card !== 'object') {
+      return false
+    }
+    if (lastCard && lastCard.isTrump(trumpSuit) && !card.isTrump(trumpSuit)) {
+      return true // Последняя карта была козырем, а текущая - нет
+    }
+    if (lastCard && lastCard.suit === card.suit) {
+      return lastCard.rank < card.rank // Последняя карта той же масти, но младше
+    }
+    return false // Никаких совпадений
+  }
+
 
   const drawCards = (player, deck) => {
     while (player.hand.cards.length < 6 && deck.cards.length > 0) {
       const drawnCard = deck.cards.pop() // Берем карту из конца колоды
       player.hand.cards.push(drawnCard) // Добавляем карту в руку игрока
     }
-  }
-  const updateCanDrawCard = () => {
-    // Проверка, может ли игрок взять карту
-    const lastCard = currentCard
-    const canCover = player.hand.cards.some(card =>
-      (card.isGreaterThan(lastCard) && card.suit === lastCard.suit) ||
-      (card.isTrump(trumpSuit) && !lastCard.isTrump(trumpSuit)) ||
-      (card.isTrump(trumpSuit) && lastCard.isTrump(trumpSuit) && card.isGreaterThan(lastCard))
-    )
-
-    setCanDrawCard(!canCover) // Игрок может тянуть карту, если не может покрыть
   }
   const attack = (card) => {
     // Проверяем, пусто ли поле и игрок начинает ход
@@ -58,31 +60,25 @@ const App = () => {
       setFieldCards([card])
       player.hand.cards = player.hand.cards.filter(c => c !== card) // Удалить карту из руки игрока
 
-      // Проверяем, проиграл ли игрок после атаки
       const isGameOver = checkGameOver()
       if (isGameOver) return
 
-      // Обновляем очередь на ход
-      setIsPlayerTurn(false) // Теперь ход бота
+      setIsPlayerTurn(false)
     } else {
-      const lastCard = currentCard // Последняя карта на столе
+      const lastCard = currentCard
 
-      // Проверка на возможность крытия
-      const canCover =
-        (card.isGreaterThan(lastCard) && card.suit === lastCard.suit) ||  // Сильная карта той же масти
-        (card.isTrump(trumpSuit) && !lastCard.isTrump(trumpSuit)) ||  // Козырь против некозыря
-        (card.isTrump(trumpSuit) && lastCard.isTrump(trumpSuit) && card.isGreaterThan(lastCard))  // Сильный козырь против другого козыря
+      // Проверка на возможность защиты
+      const canCover = checkCanCover(card, lastCard, trumpSuit)
 
       if (canCover) {
         setFieldCards([card])
-        player.hand.cards = player.hand.cards.filter(c => c !== card) // Удалить карту из руки игрока
+        player.hand.cards = player.hand.cards.filter(c => c !== card) //Удалить карту из руки игрока
 
-        // Проверяем, проиграл ли игрок после атаки
+
         const isGameOver = checkGameOver()
         if (isGameOver) return
 
 
-        // Обновляем очередь на ход
         setIsPlayerTurn(false) // Теперь ход бота
       } else {
         alert("Вы не можете крыть этой картой!")
@@ -92,7 +88,7 @@ const App = () => {
 
 
   const botAttack = () => {
-    // Логика для того, чтобы бот атаковал после успешной защиты
+    // кароч чтобы бот атаковал после успешной защиты
     const cardToAttack = bot.hand.cards[Math.floor(Math.random() * bot.hand.cards.length)]
 
     if (cardToAttack) {
@@ -109,11 +105,10 @@ const App = () => {
       setFieldCards([])
       setCurrentCard(null)
 
-      // Проверка завершения игры
+
       const isGameOver = checkGameOver()
       if (isGameOver) return
 
-      // Теперь ход игрока
       setIsPlayerTurn(true)
     }
   }
@@ -122,28 +117,22 @@ const App = () => {
     const lastCard = fieldCards[fieldCards.length - 1]
 
     // Проверка для успешной защиты
-    const canDefend =
-      (card.isGreaterThan(lastCard) && card.suit === lastCard.suit) || // Сильная карта той же масти
-      (card.isTrump(trumpSuit) && !lastCard.isTrump(trumpSuit)) || // Козырь против некозыря
-      (card.isTrump(trumpSuit) && lastCard.isTrump(trumpSuit) && card.isGreaterThan(lastCard)) // Сильный козырь против другого козыря
+    const canDefend = checkCanCover(card, lastCard, trumpSuit)
 
 
 
     if (canDefend) {
-      // Удаление защищающей карты из руки игрока или бота
+      //Удаление защищающей карты из руки игрока или бота
       if (player.hand.cards.includes(card)) {
         player.hand.cards = player.hand.cards.filter(c => c !== card)
       } else {
         bot.hand.cards = bot.hand.cards.filter(c => c !== card)
       }
 
-      setCurrentCard(null) // Обнуляем текущую карту
-
+      setCurrentCard(null)
       // Очищаем поле от карт
       setFieldCards([])
-
-      // Ход бота после успешной защиты
-
+      // Передаем ход ботику
       botAttack()
     } else {
       // Игрок или бот берет все карты с поля
@@ -166,18 +155,17 @@ const App = () => {
     }
   }
 
-
   const botTurn = () => {
     if (!currentCard) {
       botAttack()
     }
 
     const lastCard = fieldCards[fieldCards.length - 1]
-    const cardToPlay = bot.hand.cards.find(card =>
-      (card.isGreaterThan(lastCard) && card.suit === lastCard.suit) || // Сильная карта той же масти
-      (card.isTrump(trumpSuit) && !lastCard.isTrump(trumpSuit)) || // Козырь против некозыря
-      (card.isTrump(trumpSuit) && lastCard.isTrump(trumpSuit) && card.isGreaterThan(lastCard))  // Сильный козырь против другого козыря
-    )
+
+    const cardToPlay = bot.hand.cards.find(card => {
+      if (typeof card !== 'object' || !card) return false
+      return checkCanCover(card, lastCard, trumpSuit)
+    })
 
     if (cardToPlay) {
       alert(`Бот бьёт картой:${cardToPlay.rank}${cardToPlay.suit}`)
@@ -188,16 +176,12 @@ const App = () => {
       if (!isPlayerTurn) {
         alert("Бот не смог защититься! Бот берет все карты.")
       }
-
       bot.hand.cards.push(...fieldCards) // Бот берет все карты
       setFieldCards([])
       setCurrentCard(null)
-
       // Проверка завершения игры
       checkGameOver()
-
       // Ход переходит к игроку
-
       setIsPlayerTurn(true)
     }
   }
@@ -218,7 +202,6 @@ const App = () => {
 
   }, [player.hand.cards.length, bot.hand.cards.length, deck])
   const takeCardFromBot = () => {
-    // Проверка наличия карт на поле
     if (fieldCards.length === 0) {
       alert('Нет карт на поле, которые можно забрать!')
       return
@@ -226,8 +209,6 @@ const App = () => {
 
     // Сначала добавляем карты с поля в руку игрока
     player.hand.cards.push(...fieldCards)
-
-    // Удаляем карты с поля из рук бота, если это необходимо
     fieldCards.forEach(card => {
       bot.hand.cards = bot.hand.cards.filter(c => c !== card) // Убрать соответствующие карты у бота
     })
